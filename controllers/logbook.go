@@ -12,9 +12,15 @@ import (
 	"github.com/google/uuid"
 )
 
-// POST /api/vehicles/:vehicleId/logbook
+// POST /api/vehicles/:id/logbook
 func CreateLogbookEntry(c *gin.Context) {
-	vehicleID := c.Param("vehicleId")
+	vehicleID := c.Param("id") // Correto: mapeia o :id do veículo
+
+	vid, err := uuid.Parse(vehicleID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do veículo inválido"})
+		return
+	}
 
 	title := c.PostForm("title")
 	description := c.PostForm("description")
@@ -43,7 +49,7 @@ func CreateLogbookEntry(c *gin.Context) {
 	}
 
 	entry := models.LogbookEntry{
-		VehicleID:     vehicleID,
+		VehicleID:     vid,
 		Category:      models.LogbookCategory(category),
 		Title:         title,
 		Description:   description,
@@ -58,9 +64,9 @@ func CreateLogbookEntry(c *gin.Context) {
 	c.JSON(http.StatusCreated, entry)
 }
 
-// GET /api/vehicles/:vehicleId/logbook
+// GET /api/vehicles/:id/logbook
 func GetLogbookEntries(c *gin.Context) {
-	vehicleID := c.Param("vehicleId")
+	vehicleID := c.Param("id") // Correto: mapeia o :id do veículo
 	categoryFilter := c.Query("category")
 
 	var entries []models.LogbookEntry
@@ -78,18 +84,39 @@ func GetLogbookEntries(c *gin.Context) {
 	c.JSON(http.StatusOK, entries)
 }
 
-func UpdateLogbookEntry(c *gin.Context) {
-	id := c.Param("id")
-	vehicleID := c.Param("vehicleId")
+// GET /api/vehicles/:id/logbook/:logbookId
+func GetLogbookEntryByID(c *gin.Context) {
+	vehicleID := c.Param("id")        // Ajustado de "vehicleId" para "id"
+	logbookID := c.Param("logbookId") // Ajustado de "id" para "logbookId"
 
 	var entry models.LogbookEntry
-	// Busca o registro original garantindo que pertence ao veículo correto
-	if err := config.DB.Where("id = ? AND vehicle_id = ?", id, vehicleID).First(&entry).Error; err != nil {
+	if err := config.DB.Where("id = ? AND vehicle_id = ?", logbookID, vehicleID).First(&entry).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Registro não encontrado"})
 		return
 	}
 
-	// Captura os dados textuais enviados para atualização
+	c.JSON(http.StatusOK, entry)
+}
+
+// PUT /api/vehicles/:id/logbook/:logbookId
+func UpdateLogbookEntry(c *gin.Context) {
+	vehicleID := c.Param("id")        // Mapeia o :id da URL
+	logbookID := c.Param("logbookId") // Mapeia o :logbookId da URL
+
+	// Validação de segurança para garantir que os parâmetros não vieram vazios
+	if vehicleID == "" || logbookID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "IDs ausentes na requisição"})
+		return
+	}
+
+	var entry models.LogbookEntry
+	// Busca o registro original garantindo que as chaves batem perfeitamente
+	if err := config.DB.Where("id = ? AND vehicle_id = ?", logbookID, vehicleID).First(&entry).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Registro de manutenção não encontrado"})
+		return
+	}
+
+	// Captura os dados textuais enviados via form-data para atualização
 	title := c.PostForm("title")
 	description := c.PostForm("description")
 	category := c.PostForm("category")
@@ -117,43 +144,37 @@ func UpdateLogbookEntry(c *gin.Context) {
 		}
 	}
 
+	// Como a struct 'entry' agora foi populada corretamente pelo First, o Save executará um UPDATE real
 	if err := config.DB.Save(&entry).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao atualizar o registro"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao atualizar o registro no banco"})
 		return
 	}
 
 	c.JSON(http.StatusOK, entry)
 }
 
-// DELETE /api/vehicles/:vehicleId/logbook/:id
+// DELETE /api/vehicles/:id/logbook/:logbookId
 func DeleteLogbookEntry(c *gin.Context) {
-	id := c.Param("id")
-	vehicleID := c.Param("vehicleId")
+	vehicleID := c.Param("id")        // Mapeia o :id da URL
+	logbookID := c.Param("logbookId") // Mapeia o :logbookId da URL
 
-	var entry models.LogbookEntry
-	if err := config.DB.Where("id = ? AND vehicle_id = ?", id, vehicleID).First(&entry).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Registro não encontrado"})
+	if vehicleID == "" || logbookID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "IDs ausentes na requisição"})
 		return
 	}
 
+	var entry models.LogbookEntry
+	// Localiza o registro antes para ter certeza de que as amarrações de ID existem
+	if err := config.DB.Where("id = ? AND vehicle_id = ?", logbookID, vehicleID).First(&entry).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Registro de manutenção não encontrado"})
+		return
+	}
+
+	// Deleta passando a struct populada com a chave primária real obtida no passo anterior
 	if err := config.DB.Delete(&entry).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao deletar o registro"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Registro removido com sucesso"})
-}
-
-// GET /api/vehicles/:vehicleId/logbook/:id
-func GetLogbookEntryByID(c *gin.Context) {
-	id := c.Param("id")
-	vehicleID := c.Param("vehicleId")
-
-	var entry models.LogbookEntry
-	if err := config.DB.Where("id = ? AND vehicle_id = ?", id, vehicleID).First(&entry).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Registro não encontrado"})
-		return
-	}
-
-	c.JSON(http.StatusOK, entry)
 }
