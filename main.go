@@ -21,7 +21,7 @@ func main() {
 	}
 
 	config.ConnectDatabase()
-	errorMigrate := config.DB.AutoMigrate(&models.Vehicle{}, &models.LogbookEntry{})
+	errorMigrate := config.DB.AutoMigrate(&models.Vehicle{}, &models.LogbookEntry{}, &models.Service{})
 	if errorMigrate != nil {
 		log.Fatal("Erro ao rodar as migrações: ", errorMigrate)
 	}
@@ -55,6 +55,8 @@ func main() {
 		api.GET("/vehicles/:id/logbook/:logbookId", controllers.GetLogbookEntryByID)   // <-- Alterado para :id e :logbookId
 		api.PUT("/vehicles/:id/logbook/:logbookId", controllers.UpdateLogbookEntry)    // <-- Alterado para :id e :logbookId
 		api.DELETE("/vehicles/:id/logbook/:logbookId", controllers.DeleteLogbookEntry) // <-- Alterado para :id e :logbookId
+
+		api.POST("/services", controllers.CreateService)
 	}
 
 	appPort := os.Getenv("PORT")
