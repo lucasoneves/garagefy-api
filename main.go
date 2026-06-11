@@ -45,18 +45,23 @@ func main() {
 		// Rotas do Módulo de Veículos (CRUD Completo)
 		api.POST("/vehicles", controllers.CreateVehicle)
 		api.GET("/vehicles", controllers.GetVehicles)
-		api.GET("/vehicles/:id", controllers.GetVehicleByID) // <-- Aqui usa :id
+		api.GET("/vehicles/:id", controllers.GetVehicleByID)
 		api.PUT("/vehicles/:id", controllers.UpdateVehicle)
 		api.DELETE("/vehicles/:id", controllers.DeleteVehicle)
 
 		// Rotas do Módulo de Logbook (Ajustadas para evitar o conflito do Gin)
-		api.POST("/vehicles/:id/logbook", controllers.CreateLogbookEntry)              // <-- Alterado de :vehicleId para :id
-		api.GET("/vehicles/:id/logbook", controllers.GetLogbookEntries)                // <-- Alterado de :vehicleId para :id
-		api.GET("/vehicles/:id/logbook/:logbookId", controllers.GetLogbookEntryByID)   // <-- Alterado para :id e :logbookId
-		api.PUT("/vehicles/:id/logbook/:logbookId", controllers.UpdateLogbookEntry)    // <-- Alterado para :id e :logbookId
-		api.DELETE("/vehicles/:id/logbook/:logbookId", controllers.DeleteLogbookEntry) // <-- Alterado para :id e :logbookId
+		api.POST("/vehicles/:id/logbook", controllers.CreateLogbookEntry)
+		api.GET("/vehicles/:id/logbook", controllers.GetLogbookEntries)
+		api.GET("/vehicles/:id/logbook/:logbookId", controllers.GetLogbookEntryByID)
+		api.PUT("/vehicles/:id/logbook/:logbookId", controllers.UpdateLogbookEntry)
+		api.DELETE("/vehicles/:id/logbook/:logbookId", controllers.DeleteLogbookEntry)
 
+		// Rotas do Módulo de Serviço (Ajustadas para evitar o conflito do Gin)
 		api.POST("/services", controllers.CreateService)
+		api.GET("/services", controllers.GetServicesByVehicle)
+		api.GET("/services/:id", controllers.GetServiceByID)
+		api.PUT("/services/:id", controllers.UpdateService)
+		api.DELETE("/services/:id", controllers.DeleteService)
 	}
 
 	appPort := os.Getenv("PORT")
