@@ -1,9 +1,7 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
-	"path/filepath"
 
 	"garagefy-api/config"
 	"garagefy-api/models"
@@ -14,70 +12,65 @@ import (
 
 // POST /api/vehicles/:id/logbook
 func CreateLogbookEntry(c *gin.Context) {
-	vehicleID := c.Param("id") // Correto: mapeia o :id do veículo
+	vehicleID := c.Param("id")
 
-	vid, err := uuid.Parse(vehicleID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID do veículo inválido"})
+	userIDContext, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao identificar usuário"})
+		return
+	}
+	userID := userIDContext.(uuid.UUID)
+
+	var vehicle models.Vehicle
+	if err := config.DB.Where("id = ? AND user_id = ?", vehicleID, userID).First(&vehicle).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado ou você não tem permissão"})
 		return
 	}
 
-	title := c.PostForm("title")
-	description := c.PostForm("description")
-	category := c.PostForm("category")
+	var input struct {
+		Title       string `json:"title" binding:"required"`
+		Description string `json:"description"`
+	}
 
-	if title == "" || description == "" || category == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Campos de texto obrigatórios estão ausentes"})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	var attachmentURL *string
-
-	file, err := c.FormFile("file")
-	if err == nil {
-		fileExt := filepath.Ext(file.Filename)
-		newFileName := fmt.Sprintf("%s%s", uuid.New().String(), fileExt)
-
-		uploadPath := filepath.Join("uploads", newFileName)
-		if err := c.SaveUploadedFile(file, uploadPath); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao salvar o anexo"})
-			return
-		}
-
-		url := fmt.Sprintf("/uploads/%s", newFileName)
-		attachmentURL = &url
+	newEntry := models.LogbookEntry{
+		VehicleID:   vehicle.ID,
+		Title:       input.Title,
+		Description: input.Description,
 	}
 
-	entry := models.LogbookEntry{
-		VehicleID:     vid,
-		Category:      models.LogbookCategory(category),
-		Title:         title,
-		Description:   description,
-		AttachmentURL: attachmentURL,
-	}
-
-	if err := config.DB.Create(&entry).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao gravar no banco de dados"})
+	if err := config.DB.Create(&newEntry).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao criar registro no logbook"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, entry)
+	c.JSON(http.StatusCreated, newEntry)
 }
 
 // GET /api/vehicles/:id/logbook
 func GetLogbookEntries(c *gin.Context) {
-	vehicleID := c.Param("id") // Correto: mapeia o :id do veículo
-	categoryFilter := c.Query("category")
+	vehicleID := c.Param("id")
 
-	var entries []models.LogbookEntry
-	query := config.DB.Where("vehicle_id = ?", vehicleID)
+	userIDContext, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao identificar usuário"})
+		return
+	}
+	userID := userIDContext.(uuid.UUID)
 
-	if categoryFilter != "" && categoryFilter != "all" {
-		query = query.Where("category = ?", categoryFilter)
+	var vehicle models.Vehicle
+	if err := config.DB.Where("id = ? AND user_id = ?", vehicleID, userID).First(&vehicle).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado ou você não tem permissão"})
+		return
 	}
 
-	if err := query.Order("created_at desc").Find(&entries).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao buscar registros do Logbook"})
+	var entries []models.LogbookEntry
+	if err := config.DB.Where("vehicle_id = ?", vehicle.ID).Find(&entries).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar registros"})
 		return
 	}
 
@@ -86,12 +79,25 @@ func GetLogbookEntries(c *gin.Context) {
 
 // GET /api/vehicles/:id/logbook/:logbookId
 func GetLogbookEntryByID(c *gin.Context) {
-	vehicleID := c.Param("id")        // Ajustado de "vehicleId" para "id"
-	logbookID := c.Param("logbookId") // Ajustado de "id" para "logbookId"
+	vehicleID := c.Param("id")
+	logbookID := c.Param("logbookId")
+
+	userIDContext, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao identificar usuário"})
+		return
+	}
+	userID := userIDContext.(uuid.UUID)
+
+	var vehicle models.Vehicle
+	if err := config.DB.Where("id = ? AND user_id = ?", vehicleID, userID).First(&vehicle).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado ou você não tem permissão"})
+		return
+	}
 
 	var entry models.LogbookEntry
-	if err := config.DB.Where("id = ? AND vehicle_id = ?", logbookID, vehicleID).First(&entry).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Registro não encontrado"})
+	if err := config.DB.Where("id = ? AND vehicle_id = ?", logbookID, vehicle.ID).First(&entry).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Registro de logbook não encontrado"})
 		return
 	}
 
@@ -100,81 +106,73 @@ func GetLogbookEntryByID(c *gin.Context) {
 
 // PUT /api/vehicles/:id/logbook/:logbookId
 func UpdateLogbookEntry(c *gin.Context) {
-	vehicleID := c.Param("id")        // Mapeia o :id da URL
-	logbookID := c.Param("logbookId") // Mapeia o :logbookId da URL
+	vehicleID := c.Param("id")
+	logbookID := c.Param("logbookId")
 
-	// Validação de segurança para garantir que os parâmetros não vieram vazios
-	if vehicleID == "" || logbookID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "IDs ausentes na requisição"})
+	userIDContext, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao identificar usuário"})
+		return
+	}
+	userID := userIDContext.(uuid.UUID)
+
+	var vehicle models.Vehicle
+	if err := config.DB.Where("id = ? AND user_id = ?", vehicleID, userID).First(&vehicle).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado ou você não tem permissão"})
 		return
 	}
 
 	var entry models.LogbookEntry
-	// Busca o registro original garantindo que as chaves batem perfeitamente
-	if err := config.DB.Where("id = ? AND vehicle_id = ?", logbookID, vehicleID).First(&entry).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Registro de manutenção não encontrado"})
+	if err := config.DB.Where("id = ? AND vehicle_id = ?", logbookID, vehicle.ID).First(&entry).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Registro não encontrado"})
 		return
 	}
 
-	// Captura os dados textuais enviados via form-data para atualização
-	title := c.PostForm("title")
-	description := c.PostForm("description")
-	category := c.PostForm("category")
-
-	if title != "" {
-		entry.Title = title
-	}
-	if description != "" {
-		entry.Description = description
-	}
-	if category != "" {
-		entry.Category = models.LogbookCategory(category)
+	var input struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
 	}
 
-	// Verifica se foi enviado um novo arquivo para substituir o anexo
-	file, err := c.FormFile("file")
-	if err == nil {
-		fileExt := filepath.Ext(file.Filename)
-		newFileName := fmt.Sprintf("%s%s", uuid.New().String(), fileExt)
-		uploadPath := filepath.Join("uploads", newFileName)
-
-		if err := c.SaveUploadedFile(file, uploadPath); err == nil {
-			url := fmt.Sprintf("/uploads/%s", newFileName)
-			entry.AttachmentURL = &url
-		}
-	}
-
-	// Como a struct 'entry' agora foi populada corretamente pelo First, o Save executará um UPDATE real
-	if err := config.DB.Save(&entry).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao atualizar o registro no banco"})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	if input.Title != "" {
+		entry.Title = input.Title
+	}
+	if input.Description != "" {
+		entry.Description = input.Description
+	}
+
+	config.DB.Save(&entry)
 	c.JSON(http.StatusOK, entry)
 }
 
 // DELETE /api/vehicles/:id/logbook/:logbookId
 func DeleteLogbookEntry(c *gin.Context) {
-	vehicleID := c.Param("id")        // Mapeia o :id da URL
-	logbookID := c.Param("logbookId") // Mapeia o :logbookId da URL
+	vehicleID := c.Param("id")
+	logbookID := c.Param("logbookId")
 
-	if vehicleID == "" || logbookID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "IDs ausentes na requisição"})
+	userIDContext, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao identificar usuário"})
+		return
+	}
+	userID := userIDContext.(uuid.UUID)
+
+	var vehicle models.Vehicle
+	if err := config.DB.Where("id = ? AND user_id = ?", vehicleID, userID).First(&vehicle).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado ou você não tem permissão"})
 		return
 	}
 
 	var entry models.LogbookEntry
-	// Localiza o registro antes para ter certeza de que as amarrações de ID existem
-	if err := config.DB.Where("id = ? AND vehicle_id = ?", logbookID, vehicleID).First(&entry).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Registro de manutenção não encontrado"})
+	if err := config.DB.Where("id = ? AND vehicle_id = ?", logbookID, vehicle.ID).First(&entry).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Registro não encontrado"})
 		return
 	}
 
-	// Deleta passando a struct populada com a chave primária real obtida no passo anterior
-	if err := config.DB.Delete(&entry).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao deletar o registro"})
-		return
-	}
-
+	config.DB.Delete(&entry)
 	c.JSON(http.StatusOK, gin.H{"message": "Registro removido com sucesso"})
 }

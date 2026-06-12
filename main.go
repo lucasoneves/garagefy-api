@@ -22,7 +22,7 @@ func main() {
 	}
 
 	config.ConnectDatabase()
-	errorMigrate := config.DB.AutoMigrate(&models.Vehicle{}, &models.LogbookEntry{}, &models.Service{}, &models.User{})
+	errorMigrate := config.DB.AutoMigrate(&models.Vehicle{}, &models.LogbookEntry{}, &models.Service{}, &models.User{}, &models.FuelLog{})
 	if errorMigrate != nil {
 		log.Fatal("Erro ao rodar as migrações: ", errorMigrate)
 	}
@@ -75,6 +75,13 @@ func main() {
 			protected.GET("/services/:id", controllers.GetServiceByID)
 			protected.PUT("/services/:id", controllers.UpdateService)
 			protected.DELETE("/services/:id", controllers.DeleteService)
+
+			// Novas Rotas de Abastecimento
+			protected.POST("/fuels", controllers.CreateFuelLog)
+			protected.GET("/fuels", controllers.GetFuelLogsByVehicle)
+			protected.GET("/fuels/:id", controllers.GetFuelLogByID)
+			protected.PUT("/fuels/:id", controllers.UpdateFuelLog)
+			protected.DELETE("/fuels/:id", controllers.DeleteFuelLog)
 		}
 	}
 
