@@ -7,17 +7,24 @@ import (
 	"garagefy-api/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // POST /api/vehicles
 func CreateVehicle(c *gin.Context) {
+	// 1. Captura o userID injetado pelo AuthMiddleware
+	userIDContext, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao identificar usuário"})
+		return
+	}
+	userID := userIDContext.(uuid.UUID) // Converte a interface para o tipo uuid.UUID
+
 	var input struct {
-		Brand      string `json:"brand" binding:"required"`
-		Model      string `json:"model" binding:"required"`
-		Year       int    `json:"year" binding:"required"`
-		Plate      string `json:"plate" binding:"required"`
-		CurrentOdo int    `json:"current_odo" binding:"required"`
-		Color      string `json:"color"`
+		Brand string `json:"brand" binding:"required"`
+		Model string `json:"model" binding:"required"`
+		Year  int    `json:"year" binding:"required"`
+		Plate string `json:"plate"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -25,28 +32,35 @@ func CreateVehicle(c *gin.Context) {
 		return
 	}
 
-	vehicle := models.Vehicle{
-		Brand:      input.Brand,
-		Model:      input.Model,
-		Year:       input.Year,
-		Plate:      input.Plate,
-		CurrentOdo: input.CurrentOdo,
-		Color:      input.Color,
+	// 2. Instancia o veículo já injetando o UserID do dono
+	newVehicle := models.Vehicle{
+		UserID: userID, // <-- Segurança: Vincula o carro ao usuário logado
+		Brand:  input.Brand,
+		Model:  input.Model,
+		Year:   input.Year,
+		Plate:  input.Plate,
 	}
 
-	if err := config.DB.Create(&vehicle).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao cadastrar veículo. Placa duplicada?"})
+	if err := config.DB.Create(&newVehicle).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao cadastrar veículo"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, vehicle)
+	c.JSON(http.StatusCreated, newVehicle)
 }
 
 // GET /api/vehicles
 func GetVehicles(c *gin.Context) {
-	var vehicles []models.Vehicle
+	userIDContext, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao identificar usuário"})
+		return
+	}
+	userID := userIDContext.(uuid.UUID)
 
-	if err := config.DB.Order("created_at desc").Find(&vehicles).Error; err != nil {
+	var vehicles []models.Vehicle
+	// <-- Filtro Crítico: Traz apenas onde user_id bate com o ID do token
+	if err := config.DB.Where("user_id = ?", userID).Find(&vehicles).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar veículos"})
 		return
 	}
@@ -56,12 +70,18 @@ func GetVehicles(c *gin.Context) {
 
 // GET /api/vehicles/:id
 func GetVehicleByID(c *gin.Context) {
-	id := c.Param("id")
+	vehicleID := c.Param("id")
+	userIDContext, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao identificar usuário"})
+		return
+	}
+	userID := userIDContext.(uuid.UUID)
 
 	var vehicle models.Vehicle
-	// Correção: Uso do Where para compatibilidade garantida com UUID e Preload opcional das linhas de manutenção
-	if err := config.DB.Preload("LogbookLines").Where("id = ?", id).First(&vehicle).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado"})
+	// Busca validando os dois escopos ao mesmo tempo
+	if err := config.DB.Where("id = ? AND user_id = ?", vehicleID, userID).First(&vehicle).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado ou você não tem permissão"})
 		return
 	}
 
@@ -72,10 +92,18 @@ func GetVehicleByID(c *gin.Context) {
 func UpdateVehicle(c *gin.Context) {
 	id := c.Param("id")
 
+	// 1. Captura o userID injetado pelo AuthMiddleware
+	userIDContext, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao identificar usuário"})
+		return
+	}
+	userID := userIDContext.(uuid.UUID)
+
 	var vehicle models.Vehicle
-	// Correção: Uso do Where para UUID
-	if err := config.DB.Where("id = ?", id).First(&vehicle).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado"})
+	// Trava de segurança: Garante que o veículo pertence ao usuário que está tentando atualizar
+	if err := config.DB.Where("id = ? AND user_id = ?", id, userID).First(&vehicle).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado ou você não tem permissão"})
 		return
 	}
 
@@ -93,7 +121,7 @@ func UpdateVehicle(c *gin.Context) {
 		return
 	}
 
-	// Correção: Blindagem contra sobrescrita de dados nulos/zerados
+	// Blindagem contra sobrescrita de dados nulos/zerados
 	if input.Brand != "" {
 		vehicle.Brand = input.Brand
 	}
@@ -125,10 +153,18 @@ func UpdateVehicle(c *gin.Context) {
 func DeleteVehicle(c *gin.Context) {
 	id := c.Param("id")
 
+	// 1. Captura o userID injetado pelo AuthMiddleware
+	userIDContext, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao identificar usuário"})
+		return
+	}
+	userID := userIDContext.(uuid.UUID)
+
 	var vehicle models.Vehicle
-	// Correção: Uso do Where para UUID
-	if err := config.DB.Where("id = ?", id).First(&vehicle).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado"})
+	// Trava de segurança: Garante que só o dono consegue deletar o veículo
+	if err := config.DB.Where("id = ? AND user_id = ?", id, userID).First(&vehicle).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Veículo não encontrado ou você não tem permissão"})
 		return
 	}
 

@@ -7,6 +7,7 @@ import (
 
 	"garagefy-api/config"
 	"garagefy-api/controllers"
+	"garagefy-api/middlewares" // Importa o pacote onde criamos o middleware
 	"garagefy-api/models"
 
 	"github.com/gin-gonic/gin"
@@ -21,7 +22,7 @@ func main() {
 	}
 
 	config.ConnectDatabase()
-	errorMigrate := config.DB.AutoMigrate(&models.Vehicle{}, &models.LogbookEntry{}, &models.Service{})
+	errorMigrate := config.DB.AutoMigrate(&models.Vehicle{}, &models.LogbookEntry{}, &models.Service{}, &models.User{})
 	if errorMigrate != nil {
 		log.Fatal("Erro ao rodar as migrações: ", errorMigrate)
 	}
@@ -40,28 +41,41 @@ func main() {
 		}
 		c.Next()
 	})
+
 	api := r.Group("/api")
 	{
-		// Rotas do Módulo de Veículos (CRUD Completo)
-		api.POST("/vehicles", controllers.CreateVehicle)
-		api.GET("/vehicles", controllers.GetVehicles)
-		api.GET("/vehicles/:id", controllers.GetVehicleByID)
-		api.PUT("/vehicles/:id", controllers.UpdateVehicle)
-		api.DELETE("/vehicles/:id", controllers.DeleteVehicle)
+		// 1. ROTAS PÚBLICAS (NÃO exigem Token JWT)
+		auth := api.Group("/auth")
+		{
+			auth.POST("/register", controllers.Register)
+			auth.POST("/login", controllers.Login)
+		}
 
-		// Rotas do Módulo de Logbook (Ajustadas para evitar o conflito do Gin)
-		api.POST("/vehicles/:id/logbook", controllers.CreateLogbookEntry)
-		api.GET("/vehicles/:id/logbook", controllers.GetLogbookEntries)
-		api.GET("/vehicles/:id/logbook/:logbookId", controllers.GetLogbookEntryByID)
-		api.PUT("/vehicles/:id/logbook/:logbookId", controllers.UpdateLogbookEntry)
-		api.DELETE("/vehicles/:id/logbook/:logbookId", controllers.DeleteLogbookEntry)
+		// 2. ROTAS PROTEGIDAS (Exigem o cabeçalho 'Authorization: Bearer <TOKEN>')
+		protected := api.Group("/")
+		protected.Use(middlewares.AuthMiddleware()) // Ativa a tranca JWT para o bloco abaixo
+		{
+			// Rotas do Módulo de Veículos (CRUD Completo)
+			protected.POST("/vehicles", controllers.CreateVehicle)
+			protected.GET("/vehicles", controllers.GetVehicles)
+			protected.GET("/vehicles/:id", controllers.GetVehicleByID)
+			protected.PUT("/vehicles/:id", controllers.UpdateVehicle)
+			protected.DELETE("/vehicles/:id", controllers.DeleteVehicle)
 
-		// Rotas do Módulo de Serviço (Ajustadas para evitar o conflito do Gin)
-		api.POST("/services", controllers.CreateService)
-		api.GET("/services", controllers.GetServicesByVehicle)
-		api.GET("/services/:id", controllers.GetServiceByID)
-		api.PUT("/services/:id", controllers.UpdateService)
-		api.DELETE("/services/:id", controllers.DeleteService)
+			// Rotas do Módulo de Logbook
+			protected.POST("/vehicles/:id/logbook", controllers.CreateLogbookEntry)
+			protected.GET("/vehicles/:id/logbook", controllers.GetLogbookEntries)
+			protected.GET("/vehicles/:id/logbook/:logbookId", controllers.GetLogbookEntryByID)
+			protected.PUT("/vehicles/:id/logbook/:logbookId", controllers.UpdateLogbookEntry)
+			protected.DELETE("/vehicles/:id/logbook/:logbookId", controllers.DeleteLogbookEntry)
+
+			// Rotas do Módulo de Serviço
+			protected.POST("/services", controllers.CreateService)
+			protected.GET("/services", controllers.GetServicesByVehicle)
+			protected.GET("/services/:id", controllers.GetServiceByID)
+			protected.PUT("/services/:id", controllers.UpdateService)
+			protected.DELETE("/services/:id", controllers.DeleteService)
+		}
 	}
 
 	appPort := os.Getenv("PORT")

@@ -9,6 +9,7 @@ import (
 
 type Vehicle struct {
 	ID           uuid.UUID      `gorm:"type:uuid;primaryKey;" json:"id"`
+	UserID       uuid.UUID      `gorm:"type:uuid;not null;index" json:"user_id"`
 	Brand        string         `gorm:"type:varchar(100);not null" json:"brand"`
 	Model        string         `gorm:"type:varchar(100);not null" json:"model"`
 	Year         int            `gorm:"not null" json:"year"`
