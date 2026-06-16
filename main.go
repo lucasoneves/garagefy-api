@@ -29,7 +29,7 @@ func main() {
 
 	r := gin.Default()
 
-	r.Static("/uploads", "./uploads")
+	gin.SetMode(gin.ReleaseMode)
 
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")

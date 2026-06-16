@@ -21,10 +21,12 @@ func CreateVehicle(c *gin.Context) {
 	userID := userIDContext.(uuid.UUID) // Converte a interface para o tipo uuid.UUID
 
 	var input struct {
-		Brand string `json:"brand" binding:"required"`
-		Model string `json:"model" binding:"required"`
-		Year  int    `json:"year" binding:"required"`
-		Plate string `json:"plate"`
+		Brand      string `json:"brand" binding:"required"`
+		Model      string `json:"model" binding:"required"`
+		Year       int    `json:"year" binding:"required"`
+		Plate      string `json:"plate"`
+		CurrentOdo int    `json:"current_odo"`
+		Color      string `json:"color"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -34,11 +36,13 @@ func CreateVehicle(c *gin.Context) {
 
 	// 2. Instancia o veículo já injetando o UserID do dono
 	newVehicle := models.Vehicle{
-		UserID: userID, // <-- Segurança: Vincula o carro ao usuário logado
-		Brand:  input.Brand,
-		Model:  input.Model,
-		Year:   input.Year,
-		Plate:  input.Plate,
+		UserID:     userID,
+		Brand:      input.Brand,
+		Model:      input.Model,
+		Year:       input.Year,
+		Plate:      input.Plate,
+		CurrentOdo: input.CurrentOdo,
+		Color:      input.Color,
 	}
 
 	if err := config.DB.Create(&newVehicle).Error; err != nil {

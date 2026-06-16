@@ -25,6 +25,8 @@ func CreateService(c *gin.Context) {
 		VehicleID   string    `json:"vehicle_id" binding:"required"`
 		Title       string    `json:"title" binding:"required"`
 		Description string    `json:"description"`
+		ShopName    string    `json:"shop_name"`
+		CurrentOdo  int       `json:"current_odo"`
 		Cost        float64   `json:"cost" binding:"required"`
 		ServiceDate time.Time `json:"service_date" binding:"required"`
 	}
@@ -44,9 +46,11 @@ func CreateService(c *gin.Context) {
 	// Se o seu modelo Service já for uuid.UUID, deixamos apenas vehicle.ID.
 	// Vamos usar string aqui que é o que o erro acusou que a struct literal espera.
 	newService := models.Service{
-		VehicleID:   vehicle.ID.String(), // <--- CORREÇÃO AQUI (.String())
+		VehicleID:   vehicle.ID.String(),
 		Title:       input.Title,
 		Description: input.Description,
+		ShopName:    input.ShopName,
+		CurrentOdo:  input.CurrentOdo,
 		Cost:        input.Cost,
 		ServiceDate: input.ServiceDate,
 	}

@@ -28,6 +28,7 @@ func CreateLogbookEntry(c *gin.Context) {
 	}
 
 	var input struct {
+		Category    string `json:"category" binding:"required"`
 		Title       string `json:"title" binding:"required"`
 		Description string `json:"description"`
 	}
@@ -39,6 +40,7 @@ func CreateLogbookEntry(c *gin.Context) {
 
 	newEntry := models.LogbookEntry{
 		VehicleID:   vehicle.ID,
+		Category:    models.LogbookCategory(input.Category),
 		Title:       input.Title,
 		Description: input.Description,
 	}
@@ -129,6 +131,7 @@ func UpdateLogbookEntry(c *gin.Context) {
 	}
 
 	var input struct {
+		Category    string `json:"category"`
 		Title       string `json:"title"`
 		Description string `json:"description"`
 	}
@@ -138,6 +141,9 @@ func UpdateLogbookEntry(c *gin.Context) {
 		return
 	}
 
+	if input.Category != "" {
+		entry.Category = models.LogbookCategory(input.Category)
+	}
 	if input.Title != "" {
 		entry.Title = input.Title
 	}
