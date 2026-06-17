@@ -138,6 +138,8 @@ func UpdateService(c *gin.Context) {
 	var input struct {
 		Title       string    `json:"title"`
 		Description string    `json:"description"`
+		ShopName    string    `json:"shop_name"`
+		CurrentOdo  int       `json:"current_odo"`
 		Cost        float64   `json:"cost"`
 		ServiceDate time.Time `json:"service_date"`
 	}
@@ -152,6 +154,12 @@ func UpdateService(c *gin.Context) {
 	}
 	if input.Description != "" {
 		service.Description = input.Description
+	}
+	if input.ShopName != "" {
+		service.ShopName = input.ShopName
+	}
+	if input.CurrentOdo != 0 {
+		service.CurrentOdo = input.CurrentOdo
 	}
 	if input.Cost != 0 {
 		service.Cost = input.Cost

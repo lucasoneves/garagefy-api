@@ -34,6 +34,12 @@ services:
       - DB_NAME=garagefy
       - DB_PORT=5432
       - PORT=8080
+      - SMTP_HOST=sandbox.smtp.mailtrap.io
+      - SMTP_PORT=587
+      - SMTP_USER=7c55a1a90087e3
+      - SMTP_PASS=c73b681b4c01f2
+      - SMTP_FROM=noreply@garagefy.com
+      - RESET_PASSWORD_URL=http://localhost:8080/api/auth/reset-password
     volumes:
       - ./uploads:/app/uploads
     depends_on:
