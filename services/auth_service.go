@@ -1,6 +1,8 @@
 package services
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -9,8 +11,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Em produção, isso deve vir das variáveis de ambiente (os.Getenv("JWT_SECRET"))
 var jwtSecret = []byte("garagefy_secret_key_2026_super_secure")
+
+const ResetTokenDuration = 1 * time.Hour
+const ResetTokenBytes = 32
 
 // HashPassword transforma a senha em texto limpo em um hash seguro
 func HashPassword(password string) (string, error) {
@@ -34,6 +38,15 @@ func GenerateToken(userID uuid.UUID) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtSecret)
+}
+
+// GenerateResetToken gera um token aleatório seguro para recuperação de senha
+func GenerateResetToken() (string, error) {
+	bytes := make([]byte, ResetTokenBytes)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
 
 // ValidateToken valida a assinatura do JWT e retorna o ID do usuário se estiver tudo certo

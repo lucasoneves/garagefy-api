@@ -49,6 +49,9 @@ func main() {
 		{
 			auth.POST("/register", controllers.Register)
 			auth.POST("/login", controllers.Login)
+			auth.POST("/forgot-password", controllers.ForgotPassword)
+			auth.POST("/reset-password", controllers.ResetPassword)
+			auth.GET("/reset-password", controllers.ResetPasswordForm)
 		}
 
 		// 2. ROTAS PROTEGIDAS (Exigem o cabeçalho 'Authorization: Bearer <TOKEN>')
