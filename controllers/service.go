@@ -6,6 +6,7 @@ import (
 
 	"garagefy-api/config"
 	"garagefy-api/models"
+	"garagefy-api/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -32,7 +33,7 @@ func CreateService(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.FormatValidationError(err)})
 		return
 	}
 
@@ -42,11 +43,8 @@ func CreateService(c *gin.Context) {
 		return
 	}
 
-	// CONVERSÃO REQUISITADA: Se o seu modelo Service exigir VehicleID como string, usamos .String()
-	// Se o seu modelo Service já for uuid.UUID, deixamos apenas vehicle.ID.
-	// Vamos usar string aqui que é o que o erro acusou que a struct literal espera.
 	newService := models.Service{
-		VehicleID:   vehicle.ID.String(),
+		VehicleID:   vehicle.ID,
 		Title:       input.Title,
 		Description: input.Description,
 		ShopName:    input.ShopName,
@@ -145,7 +143,7 @@ func UpdateService(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.FormatValidationError(err)})
 		return
 	}
 

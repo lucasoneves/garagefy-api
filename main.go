@@ -79,14 +79,19 @@ func main() {
 			protected.PUT("/services/:id", controllers.UpdateService)
 			protected.DELETE("/services/:id", controllers.DeleteService)
 
-			// Novas Rotas de Abastecimento
+			// Rotas de Abastecimento
 			protected.POST("/fuels", controllers.CreateFuelLog)
 			protected.GET("/fuels", controllers.GetFuelLogsByVehicle)
 			protected.GET("/fuels/:id", controllers.GetFuelLogByID)
 			protected.PUT("/fuels/:id", controllers.UpdateFuelLog)
 			protected.DELETE("/fuels/:id", controllers.DeleteFuelLog)
+
+			// Upload de Arquivos
+			protected.POST("/upload", controllers.UploadFile)
 		}
 	}
+
+	r.Static("/uploads", "./uploads")
 
 	appPort := os.Getenv("PORT")
 	if appPort == "" {

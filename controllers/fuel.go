@@ -6,6 +6,7 @@ import (
 
 	"garagefy-api/config"
 	"garagefy-api/models"
+	"garagefy-api/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,14 +24,16 @@ func CreateFuelLog(c *gin.Context) {
 	var input struct {
 		VehicleID    string    `json:"vehicle_id" binding:"required"`
 		Date         time.Time `json:"date" binding:"required"`
-		Odometer     int       `json:"odometer" binding:"required"`
+		Odometer     int       `json:"odometer"`
 		Liters       float64   `json:"liters" binding:"required"`
 		PricePerLite float64   `json:"price_per_liter" binding:"required"`
 		IsFullTank   bool      `json:"is_full_tank"`
+		GasStation   string    `json:"gas_station"`
+		FuelType     string    `json:"fuel_type"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.FormatValidationError(err)})
 		return
 	}
 
@@ -49,6 +52,8 @@ func CreateFuelLog(c *gin.Context) {
 		Liters:      input.Liters,
 		PricePerLit: input.PricePerLite,
 		IsFullTank:  input.IsFullTank,
+		GasStation:  input.GasStation,
+		FuelType:    input.FuelType,
 	}
 
 	// 3. Lógica do Cálculo de KM/L (Consumo)
@@ -161,10 +166,12 @@ func UpdateFuelLog(c *gin.Context) {
 		Liters       float64   `json:"liters"`
 		PricePerLite float64   `json:"price_per_liter"`
 		IsFullTank   *bool     `json:"is_full_tank"` // Usando ponteiro para detectar falso booleano enviado explicitamente
+		GasStation   string    `json:"gas_station"`
+		FuelType     string    `json:"fuel_type"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.FormatValidationError(err)})
 		return
 	}
 
@@ -183,6 +190,12 @@ func UpdateFuelLog(c *gin.Context) {
 	}
 	if input.IsFullTank != nil {
 		fuelLog.IsFullTank = *input.IsFullTank
+	}
+	if input.GasStation != "" {
+		fuelLog.GasStation = input.GasStation
+	}
+	if input.FuelType != "" {
+		fuelLog.FuelType = input.FuelType
 	}
 
 	// Recalcula o custo total preventivamente se houver alterações

@@ -12,6 +12,8 @@ type FuelLog struct {
 	VehicleID   uuid.UUID      `gorm:"type:uuid;not null;index" json:"vehicle_id"`
 	Date        time.Time      `gorm:"not null" json:"date"`
 	Odometer    int            `gorm:"not null" json:"odometer"`
+	GasStation  string         `gorm:"type:varchar(100)" json:"gas_station,omitempty"`
+	FuelType    string         `gorm:"type:varchar(20);not null;default:'Gasolina'" json:"fuel_type"`
 	Liters      float64        `gorm:"type:numeric(6,2);not null" json:"liters"`
 	PricePerLit float64        `gorm:"type:numeric(5,2);not null" json:"price_per_liter"`
 	TotalCost   float64        `gorm:"type:numeric(8,2)" json:"total_cost"`

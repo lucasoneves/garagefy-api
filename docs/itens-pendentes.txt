@@ -1,0 +1,60 @@
+===============================================================================
+                      GARAGEFY API - ITENS PENDENTES
+===============================================================================
+
+Alta Prioridade (~3-6h)
+------------------------------------------------------------------------------
+
+P11 - Zero testes automatizados
+      Nenhum arquivo *_test.go no projeto.
+
+P12 - Validacao de categoria do logbook
+      Conversao direta de string sem validar valores permitidos.
+
+Media Prioridade (~8-16h)
+------------------------------------------------------------------------------
+
+P8  - Dashboard / Relatorios
+      Faltam endpoints agregados (summary, custos, consumo).
+
+P9  - Notificacoes e Lembretes
+      Sem disparo automatico para Reminders / To-dos.
+
+P10 - Paginacao
+      Todos os endpoints de listagem sem suporte a page/limit.
+
+P13 - UpdateService sem tratamento de erro no Save
+      config.DB.Save(&service) ignora erro.
+
+P14 - DeleteService sem tratamento de erro no Delete
+      Mesmo problema do P13.
+
+P15 - UpdateLogbookEntry sem tratamento de erro no Save
+      Mesmo problema do P13.
+
+P19 - CORS com wildcard *
+      Inseguro para producao, deve ser configuravel via env var.
+
+Baixa Prioridade (~4-8h)
+------------------------------------------------------------------------------
+
+P16 - README.md ausente
+      Sem instrucoes de setup/configuracao.
+
+P17 - Sem documentacao OpenAPI/Swagger
+      Nao ha swagger.json ou documentacao interativa.
+
+P18 - .env.example incompleto
+      Faltam variaveis GIN_MODE e ALLOWED_ORIGINS.
+
+P20 - Sem CI/CD
+      Nenhum workflow GitHub Actions.
+
+P21 - Sem configuracao de ambiente producao
+      Docker Compose apenas para dev.
+
+===============================================================================
+Total de itens pendentes: 11
+Estimativa total: ~15-30 horas
+Ultima atualizacao: 23/06/2026
+===============================================================================
